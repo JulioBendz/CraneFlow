@@ -13,8 +13,8 @@ export default function Login() {
     e.preventDefault();
     if (!name.trim()) return;
 
-    // Simulate an ID assignment
-    const generatedId = Math.floor(Math.random() * 1000) + 1;
+    // Simulate an ID assignment - Assigning fixed DB existing IDs for Foreign Key integrity
+    const generatedId = 1; 
     login(generatedId, role, name);
 
     if (role === 'SOCIO') {
