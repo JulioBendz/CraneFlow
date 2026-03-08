@@ -1,0 +1,1 @@
+﻿<Solution>  <Project Path="CraneFlow.API/CraneFlow.API.csproj" />  <Project Path="CraneFlow.Application/CraneFlow.Application.csproj" />  <Project Path="CraneFlow.Domain/CraneFlow.Domain.csproj" />  <Project Path="CraneFlow.Infrastructure/CraneFlow.Infrastructure.csproj" /></Solution>

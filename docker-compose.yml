@@ -1,0 +1,15 @@
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: CraneFlow_DB
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=TuPasswordSeguro123! # ¡Cambia esto!
+    networks:
+      - craneflow-network
+
+networks:
+  craneflow-network:
+    driver: bridge
