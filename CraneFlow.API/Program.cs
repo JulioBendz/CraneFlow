@@ -29,6 +29,16 @@ try
     builder.Services.AddSignalR();
     builder.Services.AddScoped<ICraneNotificationService, CraneNotificationService>();
 
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("CorsPolicy",
+            builder => builder
+                .WithOrigins("http://localhost:5173", "http://localhost:3000") // Vite default ports
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials());
+    });
+
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
@@ -37,6 +47,8 @@ try
 
     // Custom Middlewares
     app.UseMiddleware<GlobalExceptionMiddleware>();
+
+    app.UseCors("CorsPolicy");
 
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
