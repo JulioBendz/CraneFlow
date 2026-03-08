@@ -37,4 +37,10 @@ public class CraneHub : Hub
         await Groups.AddToGroupAsync(Context.ConnectionId, $"Socio_{idSocio}");
         _logger.LogInformation("Socio {IdSocio} unido a su grupo ({ConnectionId})", idSocio, Context.ConnectionId);
     }
+
+    // Nuevo: El Conductor en ruta transmite su GPS directo al Socio (No se guarda en DB por rendimiento)
+    public async Task EnviarUbicacion(int idSocio, double lat, double lng)
+    {
+        await Clients.Group($"Socio_{idSocio}").SendAsync("RecibirUbicacion", lat, lng);
+    }
 }

@@ -57,6 +57,16 @@ export const useSignalR = () => {
     }
   }, [connection, isConnected]);
 
+  const enviarUbicacion = useCallback(async (idSocio, lat, lng) => {
+    if (connection && isConnected) {
+      try {
+        await connection.invoke('EnviarUbicacion', idSocio, lat, lng);
+      } catch (error) {
+        console.error('Failed to enviar ubicacion', error);
+      }
+    }
+  }, [connection, isConnected]);
+
   const on = useCallback((eventName, callback) => {
     if (connection) {
       connection.on(eventName, callback);
@@ -75,6 +85,7 @@ export const useSignalR = () => {
     connectToHub,
     joinConductorGroup,
     joinSocioGroup,
+    enviarUbicacion,
     on,
     off
   };

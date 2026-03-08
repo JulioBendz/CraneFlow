@@ -12,7 +12,7 @@ export default function ConductorDashboard() {
   const [servicioActual, setServicioActual] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const { connectToHub, isConnected, joinConductorGroup, on, off } = useSignalR();
+  const { connectToHub, isConnected, joinConductorGroup, enviarUbicacion, on, off } = useSignalR();
 
   useEffect(() => {
     if (!userId || role !== 'CONDUCTOR') {
@@ -76,6 +76,30 @@ export default function ConductorDashboard() {
       };
     }
   }, [isConnected, userId, joinConductorGroup, on, off]);
+
+  // Simulador de Movimiento GPS
+  useEffect(() => {
+    let intervalId;
+    if (servicioActual && isConnected) {
+      // Coordenadas base (ej: Lima Centro)
+      let currentLat = -12.055374;
+      let currentLng = -77.042793;
+
+      // Iniciar el broadcasting
+      enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
+
+      intervalId = setInterval(() => {
+        // Mover milimétricamente hacia el noreste
+        currentLat += 0.0005;
+        currentLng += 0.0005;
+        enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
+      }, 3000); // Actualizar cada 3 segundos
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [servicioActual, isConnected, enviarUbicacion]);
 
   const aceptarSolicitud = async (idSolicitud) => {
     try {

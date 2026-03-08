@@ -4,6 +4,7 @@ import { useSignalR } from '../hooks/useSignalR';
 import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 
 export default function SocioDashboard() {
   const { userId, name, role, logout } = useAuthStore();
@@ -13,6 +14,7 @@ export default function SocioDashboard() {
   const [solicitud, setSolicitud] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [ubicacionConductor, setUbicacionConductor] = useState(null);
 
   const { connectToHub, isConnected, joinSocioGroup, on, off } = useSignalR();
 
@@ -37,10 +39,16 @@ export default function SocioDashboard() {
         }
       };
 
+      const handleUbicacion = (lat, lng) => {
+        setUbicacionConductor({ lat, lng });
+      };
+
       on('SolicitudActualizada', handleSolicitudActualizada);
+      on('RecibirUbicacion', handleUbicacion);
 
       return () => {
         off('SolicitudActualizada', handleSolicitudActualizada);
+        off('RecibirUbicacion', handleUbicacion);
       };
     }
   }, [isConnected, userId, joinSocioGroup, on, off, solicitud]);
@@ -162,12 +170,12 @@ export default function SocioDashboard() {
               <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 mb-6">
                 <p className="text-sm text-slate-400 mb-1">Conductor Asignado</p>
                 <div className="flex items-center mt-2">
-                  <div className="h-10 w-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lgmr-3">
+                  <div className="h-10 w-10 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-lg mr-3">
                     {solicitud.nombreConductor ? solicitud.nombreConductor[0] : 'C'}
                   </div>
                   <div className="ml-3">
                     <p className="font-medium text-white">{solicitud.nombreConductor || 'Conductor asignado'}</p>
-                    <p className="text-sm text-slate-400">Placa: {solicitud.placaGrua || '---'}</p>
+                    <p className="text-sm text-slate-400">Placa: <span className="text-amber-400 font-mono font-bold bg-amber-400/10 px-2 py-0.5 rounded">{solicitud.placaGrua || '---'}</span></p>
                   </div>
                 </div>
               </div>
@@ -194,6 +202,29 @@ export default function SocioDashboard() {
                 </div>
               </div>
             </div>
+
+            {(solicitud.estado === 'Aceptada' || solicitud.estado === 'EnCamino') && (
+              <div className="mt-6 mb-6 rounded-xl overflow-hidden border border-slate-700 h-64 bg-slate-800">
+                {!ubicacionConductor ? (
+                  <div className="h-full w-full flex flex-col items-center justify-center text-slate-500">
+                    <Clock className="animate-spin mb-2" size={24} />
+                    <p className="text-sm">Esperando GPS del conductor...</p>
+                  </div>
+                ) : (
+                  <MapContainer center={[ubicacionConductor.lat, ubicacionConductor.lng]} zoom={15} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[ubicacionConductor.lat,ubicacionConductor.lng]}>
+                      <Popup>
+                        La grúa de {solicitud.nombreConductor} está aquí.
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                )}
+              </div>
+            )}
             
             {(solicitud.estado === 'Aceptada' || solicitud.estado === 'EnCamino') && (
               <button

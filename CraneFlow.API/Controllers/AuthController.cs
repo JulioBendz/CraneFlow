@@ -53,9 +53,14 @@ public class AuthController : ControllerBase
             }
             else 
             {
+                var random = new Random();
+                var letters = new string(Enumerable.Repeat("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 3).Select(s => s[random.Next(s.Length)]).ToArray());
+                var numbers = random.Next(100, 999);
+                var dynPlaca = $"{letters}-{numbers}";
+
                 userId = await connection.QuerySingleAsync<int>(
-                    "INSERT INTO Conductores (Nombre, Telefono, PlacaGrua) OUTPUT INSERTED.Id VALUES (@Nombre, '000000000', 'NEW-123')", 
-                    new { request.Nombre });
+                    "INSERT INTO Conductores (Nombre, Telefono, PlacaGrua) OUTPUT INSERTED.Id VALUES (@Nombre, '000000000', @Placa)", 
+                    new { request.Nombre, Placa = dynPlaca });
             }
         }
         else
