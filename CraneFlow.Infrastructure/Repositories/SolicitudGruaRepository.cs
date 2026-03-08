@@ -49,7 +49,9 @@ public class SolicitudGruaRepository : ISolicitudGruaRepository
             parameters, 
             commandType: CommandType.StoredProcedure);
 
-        return rowsAffected > 0;
+        // Al usar SET NOCOUNT ON en el Stored Procedure de SQL Server, ExecuteAsync devuelve -1 en lugar del número de filas afectadas.
+        // Si no arrojó excepción, asumimos éxito basado en que el SP tiene THROW interno ante errores.
+        return true;
     }
 
     public async Task<IEnumerable<SolicitudGrua>> ObtenerSolicitudesPendientesAsync()
