@@ -3,24 +3,40 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { Car, User } from 'lucide-react';
 
+import apiClient from '../api/apiClient';
+
 export default function Login() {
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [role, setRole] = useState('SOCIO');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    // Simulate an ID assignment - Assigning fixed DB existing IDs for Foreign Key integrity
-    const generatedId = 1; 
-    login(generatedId, role, name);
+    setLoading(true);
+    try {
+      const resp = await apiClient.post('/Auth/login', {
+        nombre: name,
+        role: role
+      });
 
-    if (role === 'SOCIO') {
-      navigate('/socio');
-    } else {
-      navigate('/conductor');
+      if (resp.success) {
+        const generatedId = resp.data; // El verdadero ID en la BD
+        login(generatedId, role, name);
+
+        if (role === 'SOCIO') {
+          navigate('/socio');
+        } else {
+          navigate('/conductor');
+        }
+      }
+    } catch (e) {
+      alert("Error al iniciar sesión: " + e.message);
+    } finally {
+      setLoading(false);
     }
   };
 

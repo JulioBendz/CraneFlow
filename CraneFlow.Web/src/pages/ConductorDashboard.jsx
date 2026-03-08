@@ -9,6 +9,7 @@ export default function ConductorDashboard() {
   const { userId, name, role, logout } = useAuthStore();
   const navigate = useNavigate();
   const [solicitudes, setSolicitudes] = useState([]);
+  const [servicioActual, setServicioActual] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const { connectToHub, isConnected, joinConductorGroup, on, off } = useSignalR();
@@ -52,10 +53,17 @@ export default function ConductorDashboard() {
 
       const handleSolicitudActualizada = (solicitudActualizada) => {
         console.log("Solicitud actualizada por otro conductor:", solicitudActualizada);
+        
+        // Si la tomé yo, la pongo en Servicio Actual
+        if (solicitudActualizada.idConductor === userId && 
+           (solicitudActualizada.estado === 'Aceptada' || solicitudActualizada.estado === 'EnCamino')) {
+           setServicioActual(solicitudActualizada);
+        }
+        
         // Si alguien más la tomó o se canceló, actualizar la lista
         setSolicitudes((prev) => 
           prev.map(s => s.id === solicitudActualizada.id ? solicitudActualizada : s)
-              .filter(s => s.estado === 'Pendiente' || s.idConductor === userId)
+              .filter(s => s.estado === 'Pendiente')
         );
       };
 
@@ -78,10 +86,13 @@ export default function ConductorDashboard() {
         usuarioModificador: name
       });
       if (res.success) {
-        // La lista se actualizará vía SignalR para todos, incluido este conductor,
-        // pero podemos hacer update optimista:
+        // Encontraremos la solicitud para ponerla como actual optimista
+        const solAceptada = solicitudes.find(s => s.id === idSolicitud);
+        if (solAceptada) {
+           setServicioActual({...solAceptada, estado: 'Aceptada', idConductor: userId});
+        }
+        
         setSolicitudes((prev) => prev.filter(s => s.id !== idSolicitud));
-        alert('Asignación exitosa! Ve al mapa (Demo).');
       }
     } catch (error) {
       alert('Error: ' + error.message);
@@ -116,6 +127,43 @@ export default function ConductorDashboard() {
           <div className="text-center py-12 text-slate-500">
             <Clock className="mx-auto mb-3 animate-spin opacity-50" size={32} />
             <p>Buscando servicios pendientes...</p>
+          </div>
+        ) : servicioActual ? (
+          <div className="bg-white p-8 rounded-xl border-l-4 border-l-emerald-500 shadow-lg border border-slate-200">
+            <h2 className="text-xl font-bold text-slate-800 mb-2">🚀 ¡Servicio en Curso!</h2>
+            <p className="text-slate-500 mb-6">Dirígete inmediatamente al punto de origen para asistir al socio.</p>
+            
+            <div className="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-100">
+               <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Ciente / Socio</p>
+               <p className="text-lg font-bold text-slate-800">{servicioActual.nombreSocio || 'Socio Cliente'}</p>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="flex items-start">
+                <div className="bg-blue-100 text-blue-600 p-2 rounded-full mr-4"><MapPin size={20} /></div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Recoger en Origen</p>
+                  <p className="font-semibold text-slate-700">{servicioActual.ubicacionOrigen}</p>
+                </div>
+              </div>
+              <div className="h-6 w-0.5 bg-slate-200 ml-5"></div>
+              <div className="flex items-start">
+                 <div className="bg-purple-100 text-purple-600 p-2 rounded-full mr-4"><Navigation size={20} /></div>
+                 <div>
+                   <p className="text-xs font-bold text-slate-400 uppercase">Llevar al Destino</p>
+                   <p className="font-semibold text-slate-700">{servicioActual.ubicacionDestino}</p>
+                 </div>
+              </div>
+            </div>
+
+            <button 
+                onClick={() => {
+                   setServicioActual(null); // Reset MOCK to get back to pool
+                   alert('Servicio finalizado exitosamente.');
+                }}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-lg shadow-sm transition-colors">
+                Marcar como Finalizado
+            </button>
           </div>
         ) : solicitudes.filter(s => s.estado === 'Pendiente').length === 0 ? (
           <div className="bg-white p-12 rounded-xl border border-slate-200 shadow-sm text-center">
