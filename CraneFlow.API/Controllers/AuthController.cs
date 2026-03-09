@@ -23,7 +23,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         using var connection = _context.CreateConnection();
-        int userId = 0;
+        var response = new LoginResponse();
 
         if (request.Role.ToUpper() == "SOCIO")
         {
@@ -32,24 +32,25 @@ public class AuthController : ControllerBase
             
             if (exists.HasValue) 
             {
-                userId = exists.Value;
+                response.Id = exists.Value;
             }
             else 
             {
                 // Solo SQL Server soporta OUTPUT INSERTED.Id
-                userId = await connection.QuerySingleAsync<int>(
+                response.Id = await connection.QuerySingleAsync<int>(
                     "INSERT INTO Socios (Nombre, Telefono) OUTPUT INSERTED.Id VALUES (@Nombre, '000000000')", 
                     new { request.Nombre });
             }
         }
         else if (request.Role.ToUpper() == "CONDUCTOR")
         {
-            var exists = await connection.QueryFirstOrDefaultAsync<int?>(
-                "SELECT Id FROM Conductores WHERE Nombre = @Nombre", new { request.Nombre });
+            var exists = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                "SELECT Id, PlacaGrua FROM Conductores WHERE Nombre = @Nombre", new { request.Nombre });
             
-            if (exists.HasValue) 
+            if (exists != null) 
             {
-                userId = exists.Value;
+                response.Id = exists.Id;
+                response.Placa = exists.PlacaGrua;
             }
             else 
             {
@@ -58,9 +59,10 @@ public class AuthController : ControllerBase
                 var numbers = random.Next(100, 999);
                 var dynPlaca = $"{letters}-{numbers}";
 
-                userId = await connection.QuerySingleAsync<int>(
+                response.Id = await connection.QuerySingleAsync<int>(
                     "INSERT INTO Conductores (Nombre, Telefono, PlacaGrua) OUTPUT INSERTED.Id VALUES (@Nombre, '000000000', @Placa)", 
                     new { request.Nombre, Placa = dynPlaca });
+                response.Placa = dynPlaca;
             }
         }
         else if (request.Role.ToUpper() == "ADMINISTRADOR")
@@ -70,22 +72,23 @@ public class AuthController : ControllerBase
             
             if (exists.HasValue) 
             {
-                userId = exists.Value;
+                response.Id = exists.Value;
             }
             else 
             {
                 // Reutilizamos la tabla Socios pero con "ADMIN" como bandera en telefono para demo fácil
-                userId = await connection.QuerySingleAsync<int>(
+                response.Id = await connection.QuerySingleAsync<int>(
                     "INSERT INTO Socios (Nombre, Telefono) OUTPUT INSERTED.Id VALUES (@Nombre, 'ADMIN')", 
                     new { request.Nombre });
             }
+            response.Placa = "ADMIN";
         }
         else
         {
-            return BadRequest(new ApiResponse<int>(0, "Rol inválido. Debe ser SOCIO, CONDUCTOR o ADMINISTRADOR") { Success = false });
+            return BadRequest(new ApiResponse<LoginResponse>((LoginResponse)null, "Rol inválido. Debe ser SOCIO, CONDUCTOR o ADMINISTRADOR") { Success = false });
         }
 
-        return Ok(new ApiResponse<int>(userId, "Login exitoso"));
+        return Ok(new ApiResponse<LoginResponse>(response, "Login exitoso"));
     }
 }
 
@@ -93,4 +96,10 @@ public class LoginRequest
 {
     public string Nombre { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+}
+
+public class LoginResponse
+{
+    public int Id { get; set; }
+    public string Placa { get; set; } = string.Empty;
 }

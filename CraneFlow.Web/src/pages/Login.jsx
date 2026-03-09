@@ -24,8 +24,9 @@ export default function Login() {
       });
 
       if (resp.success) {
-        const generatedId = resp.data; // El verdadero ID en la BD
-        login(generatedId, role, name);
+        const generatedId = resp.data.id; // El verdadero ID en la BD
+        const placa = resp.data.placa || '';
+        login(generatedId, role, name, placa);
 
         if (role === 'SOCIO') {
           navigate('/socio');

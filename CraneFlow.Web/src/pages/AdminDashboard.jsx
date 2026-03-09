@@ -5,14 +5,26 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, Users, Truck, Activity } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { carIcon } from '../components/MapIcons';
+import { carIcon, originIcon, destinationIcon } from '../components/MapIcons';
+import RoutingMachine from '../components/RoutingMachine';
+
+// Utilidad para parsear strings "lat,lng"
+const parseLocData = (str) => {
+  if (!str) return { lat: null, lng: null };
+  const parts = str.split(',');
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    return { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+  }
+  return { lat: null, lng: null };
+};
 
 export default function AdminDashboard() {
   const { userId, name, role, logout } = useAuthStore();
   const navigate = useNavigate();
 
-  // { [idConductor]: { lat, lng, nombre, placa, estado, lastUpdate } }
+  // { [idConductor]: { lat, lng, nombre, placa, estado, origen, destino, lastUpdate } }
   const [flota, setFlota] = useState({});
+  const [selectedConductorId, setSelectedConductorId] = useState(null);
 
   const { connectToHub, isConnected, joinAdminGroup, on, off } = useSignalR();
 
@@ -90,7 +102,15 @@ export default function AdminDashboard() {
             </div>
           ) : (
             Object.values(flota).map(c => (
-              <div key={c.idConductor} className="bg-slate-900/50 hover:bg-slate-900 border border-slate-700 p-4 rounded-xl transition-all cursor-default">
+              <div 
+                key={c.idConductor} 
+                onClick={() => setSelectedConductorId(selectedConductorId === c.idConductor ? null : c.idConductor)}
+                className={`border p-4 rounded-xl transition-all cursor-pointer ${
+                  selectedConductorId === c.idConductor 
+                    ? 'bg-slate-800 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)] block'
+                    : 'bg-slate-900/50 hover:bg-slate-900 border-slate-700'
+                }`}
+              >
                 <div className="flex justify-between items-start mb-2">
                   <p className="font-bold text-sm text-white">{c.nombre}</p>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
@@ -141,28 +161,71 @@ export default function AdminDashboard() {
           scrollWheelZoom={true} 
           style={{ height: '100%', width: '100%' }}
         >
-          {/* Tile Oscuro para modo Admin (Opcional, usando CartoDB Dark Matter si está disponible o OSM por defecto modificado con CSS filter) */}
+          {/* Tile Oscuro para modo Admin */}
           <TileLayer
             attribution='&copy; OpenStreetMap'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             className="map-tiles-dark"
           />
 
-          {Object.values(flota).map(c => (
-            <Marker key={c.idConductor} position={[c.lat, c.lng]} icon={carIcon}>
-              <Popup className="admin-popup">
-                 <div className="font-sans">
-                   <h3 className="font-bold text-slate-800">{c.nombre}</h3>
-                   <p className="text-xs text-slate-500 font-mono mb-2">{c.placa}</p>
-                   {c.estado === 'Aceptada' || c.estado === 'EnCamino' ? (
-                     <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded font-bold">Rescatando Vehículo</span>
-                   ) : (
-                     <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded font-bold">Patrullando</span>
-                   )}
-                 </div>
-              </Popup>
-            </Marker>
-          ))}
+          {Object.values(flota).map(c => {
+            const isSelected = selectedConductorId === c.idConductor;
+            const origenObj = parseLocData(c.origen);
+            const destinoObj = parseLocData(c.destino);
+            
+            return (
+              <React.Fragment key={c.idConductor}>
+                <Marker 
+                  position={[c.lat, c.lng]} 
+                  icon={carIcon} 
+                  eventHandlers={{ click: () => setSelectedConductorId(isSelected ? null : c.idConductor) }}
+                >
+                  <Popup className="admin-popup">
+                     <div className="font-sans">
+                       <h3 className="font-bold text-slate-800">{c.nombre}</h3>
+                       <p className="text-xs text-slate-500 font-mono mb-2">{c.placa || 'N/A'}</p>
+                       {c.estado === 'Aceptada' || c.estado === 'EnCamino' ? (
+                         <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-1 rounded font-bold">Rescatando Vehículo</span>
+                       ) : (
+                         <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded font-bold">Patrullando</span>
+                       )}
+                     </div>
+                  </Popup>
+                </Marker>
+
+                {/* Si está seleccionado y tiene origen, trazamos la ruta del conductor hacia el origen de la incidencia */}
+                {isSelected && origenObj.lat && (
+                  <>
+                    <Marker position={[origenObj.lat, origenObj.lng]} icon={originIcon}>
+                      <Popup>Origen de Incidencia ({c.nombre})</Popup>
+                    </Marker>
+                    
+                    {destinoObj.lat && (
+                      <Marker position={[destinoObj.lat, destinoObj.lng]} icon={destinationIcon}>
+                        <Popup>Destino de Incidencia ({c.nombre})</Popup>
+                      </Marker>
+                    )}
+
+                    {/* Ruta Conductor -> Origen Incidencia */}
+                    <RoutingMachine 
+                      start={[c.lat, c.lng]} 
+                      end={[origenObj.lat, origenObj.lng]} 
+                      color="#10b981" 
+                    />
+                    
+                    {/* Ruta Origen Incidencia -> Destino Incidencia (Solo si el destino existe) */}
+                    {destinoObj.lat && (
+                       <RoutingMachine 
+                         start={[origenObj.lat, origenObj.lng]} 
+                         end={[destinoObj.lat, destinoObj.lng]} 
+                         color="#6366f1" 
+                       />
+                    )}
+                  </>
+                )}
+              </React.Fragment>
+            );
+          })}
         </MapContainer>
         
         {/* Connection Status Overaly */}

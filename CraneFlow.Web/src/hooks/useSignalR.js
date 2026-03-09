@@ -67,10 +67,10 @@ export const useSignalR = () => {
     }
   }, [connection, isConnected]);
 
-  const enviarUbicacion = useCallback(async (idSocio, idConductor, nombreConductor, placa, lat, lng, estado) => {
+  const enviarUbicacion = useCallback(async (idSocio, idConductor, nombreConductor, placa, lat, lng, estado, origen, destino) => {
     if (connection && isConnected) {
       try {
-        await connection.invoke('EnviarUbicacion', idSocio, idConductor, nombreConductor, placa, lat, lng, estado);
+        await connection.invoke('EnviarUbicacion', idSocio, idConductor, nombreConductor, placa, lat, lng, estado, origen || '', destino || '');
       } catch (error) {
         console.error('Failed to enviar ubicacion', error);
       }

@@ -9,7 +9,7 @@ import RoutingMachine from '../components/RoutingMachine';
 import { blueDotIcon, originIcon, destinationIcon } from '../components/MapIcons';
 
 export default function ConductorDashboard() {
-  const { userId, name, role, logout } = useAuthStore();
+  const { userId, name, placa, role, logout } = useAuthStore();
   const navigate = useNavigate();
   const [solicitudes, setSolicitudes] = useState([]);
   const [servicioActual, setServicioActual] = useState(null);
@@ -119,7 +119,17 @@ export default function ConductorDashboard() {
              const currentLng = pos.coords.longitude;
              setMiUbicacion({ lat: currentLat, lng: currentLng });
              // Envia la ubicación real por SignalR hacia el Socio y el Admin
-             enviarUbicacion(servicioActual.idSocio, userId, name, servicioActual.placaGrua || 'Desconocida', currentLat, currentLng, servicioActual.estado);
+             enviarUbicacion(
+               servicioActual.idSocio, 
+               userId, 
+               name, 
+               placa || 'N/A', 
+               currentLat, 
+               currentLng, 
+               servicioActual.estado,
+               servicioActual.ubicacionOrigen,
+               servicioActual.ubicacionDestino
+             );
            },
            (err) => {
              console.error("GPS Error:", err);
@@ -129,7 +139,17 @@ export default function ConductorDashboard() {
                 const fallbackLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
                 const fallbackLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
                 setMiUbicacion({ lat: fallbackLat, lng: fallbackLng });
-                enviarUbicacion(servicioActual.idSocio, userId, name, servicioActual.placaGrua || 'Desconocida', fallbackLat, fallbackLng, servicioActual.estado);
+                enviarUbicacion(
+                  servicioActual.idSocio, 
+                  userId, 
+                  name, 
+                  placa || 'N/A', 
+                  fallbackLat, 
+                  fallbackLng, 
+                  servicioActual.estado,
+                  servicioActual.ubicacionOrigen,
+                  servicioActual.ubicacionDestino
+                );
              }
            },
            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }

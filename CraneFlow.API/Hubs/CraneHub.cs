@@ -46,7 +46,7 @@ public class CraneHub : Hub
     }
 
     // El Conductor en ruta transmite su GPS directo al Socio y en broadcast a los Admins (Radar global)
-    public async Task EnviarUbicacion(int idSocio, int idConductor, string nombreConductor, string placa, double lat, double lng, string estado)
+    public async Task EnviarUbicacion(int idSocio, int idConductor, string nombreConductor, string placa, double lat, double lng, string estado, string origen, string destino)
     {
         // 1. Enviar mensaje privado 1 a 1 para el socio cliente 
         // (Nota: el front actual esparaba lat, lng. Le enviaremos un obj completo pero mantenemos retro-compat en los args)
@@ -60,6 +60,8 @@ public class CraneHub : Hub
             lat = lat, 
             lng = lng, 
             estado = estado,
+            origen = origen,
+            destino = destino,
             lastUpdate = DateTime.UtcNow
         });
     }
