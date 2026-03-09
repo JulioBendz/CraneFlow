@@ -214,8 +214,8 @@ export default function SocioDashboard() {
                 {origenPos ? (
                 <MapContainer center={[origenPos.lat, origenPos.lng]} zoom={14} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
                   <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; CARTO'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
                   <LocationPicker />
 

@@ -195,20 +195,35 @@ export default function ConductorDashboard() {
             </div>
 
             {/* MAP ROUTE IN CONDUCTOR VIEW */}
-            {(parseLocData(servicioActual.ubicacionOrigen).lat && parseLocData(servicioActual.ubicacionDestino).lat) && (
-              <div className="mt-6 mb-6 rounded-xl overflow-hidden border border-slate-300 h-64 bg-slate-100">
+            {parseLocData(servicioActual.ubicacionOrigen).lat && (
+              <div className="mt-6 mb-6 rounded-xl overflow-hidden border border-slate-300 h-64 bg-slate-100 relative">
                 <MapContainer 
                   center={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]} 
-                  zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                  zoom={14} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
                   <TileLayer
                     attribution='&copy; OpenStreetMap'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                  <RoutingMachine 
-                     start={{lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}} 
-                     end={{lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}} 
-                  />
+                  
+                  {/* Si hay destino definido y tiene coordenadas, trazamos ruta */}
+                  {parseLocData(servicioActual.ubicacionDestino).lat ? (
+                    <RoutingMachine 
+                       start={{lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}} 
+                       end={{lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}} 
+                    />
+                  ) : (
+                    /* Si no hay destino, plantamos solo el Origen para que sepa dónde ir */
+                    <Marker position={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]}>
+                       <Popup>Origen del Cliente</Popup>
+                    </Marker>
+                  )}
                 </MapContainer>
+                {/* Indicador de Ayuda */}
+                {!parseLocData(servicioActual.ubicacionDestino).lat && (
+                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-xs px-3 py-1 rounded-full shadow-lg z-[1000] font-bold">
+                    Destino no especificado. Ve hacia el cliente.
+                  </div>
+                )}
               </div>
             )}
 
