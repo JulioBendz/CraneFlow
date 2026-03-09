@@ -4,6 +4,8 @@ import { useSignalR } from '../hooks/useSignalR';
 import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Clock, CheckCircle, Bell } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import RoutingMachine from '../components/RoutingMachine';
 
 export default function ConductorDashboard() {
   const { userId, name, role, logout } = useAuthStore();
@@ -11,6 +13,17 @@ export default function ConductorDashboard() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [servicioActual, setServicioActual] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Parse location string from DB: "lat:lng|Address" or just "Address"
+  const parseLocData = (str) => {
+    if (!str) return { lat: null, lng: null, text: '' };
+    const parts = str.split('|');
+    if (parts.length === 2 && parts[0].includes(':')) {
+       const coords = parts[0].split(':');
+       return { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]), text: parts[1] };
+    }
+    return { lat: null, lng: null, text: str };
+  };
 
   const { connectToHub, isConnected, joinConductorGroup, enviarUbicacion, on, off } = useSignalR();
 
@@ -81,9 +94,10 @@ export default function ConductorDashboard() {
   useEffect(() => {
     let intervalId;
     if (servicioActual && isConnected) {
-      // Coordenadas base (ej: Lima Centro)
-      let currentLat = -12.055374;
-      let currentLng = -77.042793;
+      // Coordenadas iniciales cerca del Origen (offset aleatorio para que se vea que llega)
+      const origenParsed = parseLocData(servicioActual.ubicacionOrigen);
+      let currentLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
+      let currentLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
 
       // Iniciar el broadcasting
       enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
@@ -167,7 +181,7 @@ export default function ConductorDashboard() {
                 <div className="bg-blue-100 text-blue-600 p-2 rounded-full mr-4"><MapPin size={20} /></div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase">Recoger en Origen</p>
-                  <p className="font-semibold text-slate-700">{servicioActual.ubicacionOrigen}</p>
+                  <p className="font-semibold text-slate-700">{parseLocData(servicioActual.ubicacionOrigen).text}</p>
                 </div>
               </div>
               <div className="h-6 w-0.5 bg-slate-200 ml-5"></div>
@@ -175,10 +189,28 @@ export default function ConductorDashboard() {
                  <div className="bg-purple-100 text-purple-600 p-2 rounded-full mr-4"><Navigation size={20} /></div>
                  <div>
                    <p className="text-xs font-bold text-slate-400 uppercase">Llevar al Destino</p>
-                   <p className="font-semibold text-slate-700">{servicioActual.ubicacionDestino}</p>
+                   <p className="font-semibold text-slate-700">{parseLocData(servicioActual.ubicacionDestino).text}</p>
                  </div>
               </div>
             </div>
+
+            {/* MAP ROUTE IN CONDUCTOR VIEW */}
+            {(parseLocData(servicioActual.ubicacionOrigen).lat && parseLocData(servicioActual.ubicacionDestino).lat) && (
+              <div className="mt-6 mb-6 rounded-xl overflow-hidden border border-slate-300 h-64 bg-slate-100">
+                <MapContainer 
+                  center={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]} 
+                  zoom={13} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer
+                    attribution='&copy; OpenStreetMap'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <RoutingMachine 
+                     start={{lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}} 
+                     end={{lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}} 
+                  />
+                </MapContainer>
+              </div>
+            )}
 
             <button 
                 onClick={() => {
@@ -216,14 +248,14 @@ export default function ConductorDashboard() {
                     <MapPin className="text-slate-400 mr-3 mt-0.5 bg-white rounded-full shrink-0" size={18} />
                     <div>
                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recoger en</p>
-                      <p className="text-sm font-medium">{s.ubicacionOrigen}</p>
+                      <p className="text-sm font-medium">{parseLocData(s.ubicacionOrigen).text}</p>
                     </div>
                   </div>
                   <div className="flex items-start bg-slate-50 p-2 rounded-lg relative z-10">
                     <Navigation className="text-slate-400 mr-3 mt-0.5 bg-white rounded-full shrink-0" size={18} />
                     <div>
                       <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Llevar a</p>
-                      <p className="text-sm font-medium">{s.ubicacionDestino}</p>
+                      <p className="text-sm font-medium">{parseLocData(s.ubicacionDestino).text}</p>
                     </div>
                   </div>
                 </div>

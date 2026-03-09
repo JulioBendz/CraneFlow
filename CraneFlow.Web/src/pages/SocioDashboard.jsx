@@ -3,18 +3,50 @@ import { useAuthStore } from '../store/authStore';
 import { useSignalR } from '../hooks/useSignalR';
 import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapPin, Navigation, Clock, CheckCircle2, XCircle, Crosshair } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import RoutingMachine from '../components/RoutingMachine';
 
 export default function SocioDashboard() {
   const { userId, name, role, logout } = useAuthStore();
   const navigate = useNavigate();
   const [origen, setOrigen] = useState('');
   const [destino, setDestino] = useState('');
+  
+  // Interactive Map State
+  const [origenPos, setOrigenPos] = useState(null); // {lat, lng}
+  const [destinoPos, setDestinoPos] = useState(null); // {lat, lng}
+  const [mapMode, setMapMode] = useState('origen'); // 'origen' o 'destino'
+
   const [solicitud, setSolicitud] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ubicacionConductor, setUbicacionConductor] = useState(null);
+
+  // Parse location string from DB: "lat:lng|Address" or just "Address"
+  const parseLocData = (str) => {
+    if (!str) return { lat: null, lng: null, text: '' };
+    const parts = str.split('|');
+    if (parts.length === 2 && parts[0].includes(':')) {
+       const coords = parts[0].split(':');
+       return { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]), text: parts[1] };
+    }
+    return { lat: null, lng: null, text: str };
+  };
+
+  // Click handler map component
+  const LocationPicker = () => {
+    useMapEvents({
+      click(e) {
+        if (mapMode === 'origen') {
+          setOrigenPos(e.latlng);
+        } else if (mapMode === 'destino') {
+          setDestinoPos(e.latlng);
+        }
+      },
+    });
+    return null;
+  };
 
   const { connectToHub, isConnected, joinSocioGroup, on, off } = useSignalR();
 
@@ -53,26 +85,52 @@ export default function SocioDashboard() {
     }
   }, [isConnected, userId, joinSocioGroup, on, off, solicitud]);
 
+  // Obtener Ubicación automáticamente
+  useEffect(() => {
+    if (!solicitud && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setOrigenPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setOrigen("Ubicación Actual (GPS)");
+        },
+        (err) => {
+          console.log("No se pudo obtener GPS, usando Lima como default");
+          setOrigenPos({ lat: -12.046374, lng: -77.042793 });
+          setError("No se pudo leer tu GPS. Ubica el marcador manualmente.");
+        }
+      );
+    }
+  }, [solicitud]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!origenPos) {
+      setError('Debes colocar el marcador de Origen en el mapa, es obligatorio.');
+      return;
+    }
+
     setLoading(true);
     setError('');
+
+    // Format for DB
+    const finalOrigen = `${origenPos.lat}:${origenPos.lng}|${origen || 'GPS Marcado'}`;
+    const finalDestino = destinoPos ? `${destinoPos.lat}:${destinoPos.lng}|${destino || 'Destino Marcado'}` : destino || 'Sin especificar';
 
     try {
       const response = await apiClient.post('/SolicitudGrua', {
         idSocio: userId,
-        ubicacionOrigen: origen,
-        ubicacionDestino: destino,
+        ubicacionOrigen: finalOrigen,
+        ubicacionDestino: finalDestino,
         usuarioSolicitante: name
       });
 
       if (response.success) {
-        // En un caso real llamarías al GET por Id. Usamos la data mock para la UI optimista.
+        // Optimistic UI Data
         setSolicitud({
           id: response.data,
           estado: 'Pendiente',
-          ubicacionOrigen: origen,
-          ubicacionDestino: destino
+          ubicacionOrigen: finalOrigen,
+          ubicacionDestino: finalDestino
         });
       }
     } catch (err) {
@@ -115,33 +173,85 @@ export default function SocioDashboard() {
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
             <h2 className="text-xl font-semibold text-white mb-6">Solicitar Nueva Grúa</h2>
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Ubicación Actual (Origen)</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 text-slate-500" size={20} />
-                  <input
-                    type="text"
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                    placeholder="Av. Principal 123"
-                    value={origen}
-                    onChange={(e) => setOrigen(e.target.value)}
-                    required
-                  />
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Origen (Requerido)</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 text-slate-500" size={20} />
+                    <input
+                      type="text"
+                      className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                      placeholder="Ej. Av. Principal 123"
+                      value={origen}
+                      onChange={(e) => setOrigen(e.target.value)}
+                      onClick={() => setMapMode('origen')}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">Haz click en el mapa con el puntero rojo para trazar la grúa y permitir al conductor trazar la ruta inteligente.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Destino (Opcional)</label>
+                  <div className="relative">
+                    <Navigation className="absolute left-3 top-3 text-slate-500" size={20} />
+                    <input
+                      type="text"
+                      className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                      placeholder="Ej. Taller Mecánico, opcional."
+                      value={destino}
+                      onChange={(e) => setDestino(e.target.value)}
+                      onClick={() => setMapMode('destino')}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">Haz click en el mapa con el puntero azul para trazar el punto de desembarque de la grúa.</p>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Destino</label>
-                <div className="relative">
-                  <Navigation className="absolute left-3 top-3 text-slate-500" size={20} />
-                  <input
-                    type="text"
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-                    placeholder="Taller Mecánico Central"
-                    value={destino}
-                    onChange={(e) => setDestino(e.target.value)}
-                    required
+              {/* INTERACTIVE MAP FOR ROUTING PLANNING */}
+              <div className="mt-4 rounded-xl overflow-hidden border-2 border-slate-700 h-64 bg-slate-900 relative">
+                {origenPos ? (
+                <MapContainer center={[origenPos.lat, origenPos.lng]} zoom={14} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; CARTO'
                   />
+                  <LocationPicker />
+
+                  {/* Marker de Origen Draggeable */}
+                  {origenPos && (
+                    <Marker 
+                      position={origenPos} 
+                      draggable={true} 
+                      eventHandlers={{ dragend: (e) => setOrigenPos(e.target.getLatLng()) }} 
+                    />
+                  )}
+
+                  {/* Marker de Destino Draggeable */}
+                  {destinoPos && (
+                    <Marker 
+                      position={destinoPos} 
+                      draggable={true} 
+                      eventHandlers={{ dragend: (e) => setDestinoPos(e.target.getLatLng()) }} 
+                    />
+                  )}
+
+                  {/* Smart Routing via Leaflet Routing Machine si existen ambos */}
+                  {(origenPos && destinoPos) && (
+                     <RoutingMachine start={origenPos} end={destinoPos} />
+                  )}
+                </MapContainer>
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-slate-500">
+                    <Crosshair className="animate-spin mb-2" size={24} /> Obteniendo GPS...
+                  </div>
+                )}
+                
+                {/* Control Panel Over Map */}
+                <div className="absolute top-2 right-2 bg-slate-800/90 backdrop-blur border border-slate-700 rounded-lg p-2 flex gap-2 z-[1000] shadow-xl">
+                   <button type="button" onClick={() => setMapMode('origen')} className={`px-3 py-1.5 text-xs font-bold rounded ${mapMode === 'origen' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>📍 Fijar Origen</button>
+                   <button type="button" onClick={() => setMapMode('destino')} className={`px-3 py-1.5 text-xs font-bold rounded ${mapMode === 'destino' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300'}`}>🏁 Fijar Destino</button>
                 </div>
               </div>
 
@@ -188,7 +298,7 @@ export default function SocioDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm text-slate-400">Origen</p>
-                  <p className="text-white font-medium">{solicitud.ubicacionOrigen}</p>
+                  <p className="text-white font-medium">{parseLocData(solicitud.ubicacionOrigen).text}</p>
                 </div>
               </div>
               <div className="w-0.5 h-6 bg-slate-700 ml-4"></div>
@@ -198,7 +308,7 @@ export default function SocioDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm text-slate-400">Destino</p>
-                  <p className="text-white font-medium">{solicitud.ubicacionDestino}</p>
+                  <p className="text-white font-medium">{parseLocData(solicitud.ubicacionDestino).text}</p>
                 </div>
               </div>
             </div>
