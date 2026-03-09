@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Clock, CheckCircle, Bell } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import RoutingMachine from '../components/RoutingMachine';
+import { blueDotIcon, originIcon, destinationIcon } from '../components/MapIcons';
 
 export default function ConductorDashboard() {
   const { userId, name, role, logout } = useAuthStore();
@@ -92,29 +93,39 @@ export default function ConductorDashboard() {
     }
   }, [isConnected, userId, joinConductorGroup, on, off]);
 
-  // Simulador de Movimiento GPS
+  // Geolocalización Real del Conductor
   useEffect(() => {
-    let intervalId;
+    let watchId;
     if (servicioActual && isConnected) {
-      // Coordenadas iniciales cerca del Origen (offset aleatorio para que se vea que llega)
-      const origenParsed = parseLocData(servicioActual.ubicacionOrigen);
-      let currentLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
-      let currentLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
-
-      setMiUbicacion({lat: currentLat, lng: currentLng});
-      enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
-
-      intervalId = setInterval(() => {
-        // Mover milimétricamente hacia el noreste
-        currentLat += 0.0005;
-        currentLng += 0.0005;
-        setMiUbicacion({lat: currentLat, lng: currentLng});
-        enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
-      }, 3000); // Actualizar cada 3 segundos
+      if (navigator.geolocation) {
+         watchId = navigator.geolocation.watchPosition(
+           (pos) => {
+             const currentLat = pos.coords.latitude;
+             const currentLng = pos.coords.longitude;
+             setMiUbicacion({ lat: currentLat, lng: currentLng });
+             // Envia la ubicación real por SignalR hacia el Socio
+             enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
+           },
+           (err) => {
+             console.error("GPS Error:", err);
+             // Fallback si rechaza GPS en localhost para demostración
+             if (!miUbicacion) {
+                const origenParsed = parseLocData(servicioActual.ubicacionOrigen);
+                const fallbackLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
+                const fallbackLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
+                setMiUbicacion({ lat: fallbackLat, lng: fallbackLng });
+                enviarUbicacion(servicioActual.idSocio, fallbackLat, fallbackLng);
+             }
+           },
+           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+         );
+      }
     }
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (watchId && navigator.geolocation) {
+         navigator.geolocation.clearWatch(watchId);
+      }
     };
   }, [servicioActual, isConnected, enviarUbicacion]);
 
@@ -208,19 +219,19 @@ export default function ConductorDashboard() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   
-                  {/* Marcadores Estáticos */}
+                  {/* Marcadores Estáticos Customizados */}
                   {miUbicacion && (
-                    <Marker position={[miUbicacion.lat, miUbicacion.lng]}>
-                      <Popup>Tú estás aquí</Popup>
+                    <Marker position={[miUbicacion.lat, miUbicacion.lng]} icon={blueDotIcon}>
+                      <Popup>Tu ubicación en tiempo real</Popup>
                     </Marker>
                   )}
                   {parseLocData(servicioActual.ubicacionOrigen).lat && (
-                     <Marker position={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]}>
+                     <Marker position={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]} icon={originIcon}>
                        <Popup>Origen del Cliente</Popup>
                      </Marker>
                   )}
                   {parseLocData(servicioActual.ubicacionDestino).lat && (
-                     <Marker position={[parseLocData(servicioActual.ubicacionDestino).lat, parseLocData(servicioActual.ubicacionDestino).lng]}>
+                     <Marker position={[parseLocData(servicioActual.ubicacionDestino).lat, parseLocData(servicioActual.ubicacionDestino).lng]} icon={destinationIcon}>
                        <Popup>Taller / Destino</Popup>
                      </Marker>
                   )}

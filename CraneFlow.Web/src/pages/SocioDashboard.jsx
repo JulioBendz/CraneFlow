@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Clock, CheckCircle2, XCircle, Crosshair } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import RoutingMachine from '../components/RoutingMachine';
+import { blueDotIcon, originIcon, destinationIcon, carIcon } from '../components/MapIcons';
 
 export default function SocioDashboard() {
   const { userId, name, role, logout } = useAuthStore();
@@ -228,7 +229,8 @@ export default function SocioDashboard() {
                     <Marker 
                       position={origenPos} 
                       draggable={true} 
-                      eventHandlers={{ dragend: (e) => setOrigenPos(e.target.getLatLng()) }} 
+                      eventHandlers={{ dragend: (e) => setOrigenPos(e.target.getLatLng()) }}
+                      icon={originIcon}
                     />
                   )}
 
@@ -237,7 +239,8 @@ export default function SocioDashboard() {
                     <Marker 
                       position={destinoPos} 
                       draggable={true} 
-                      eventHandlers={{ dragend: (e) => setDestinoPos(e.target.getLatLng()) }} 
+                      eventHandlers={{ dragend: (e) => setDestinoPos(e.target.getLatLng()) }}
+                      icon={destinationIcon}
                     />
                   )}
 
@@ -344,24 +347,43 @@ export default function SocioDashboard() {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     
-                    <Marker position={[ubicacionConductor.lat, ubicacionConductor.lng]}>
+                    <Marker position={[ubicacionConductor.lat, ubicacionConductor.lng]} icon={carIcon}>
                       <Popup>La grúa de {solicitud.nombreConductor} está aquí.</Popup>
                     </Marker>
                     
                     {parseLocData(solicitud.ubicacionOrigen).lat && (
-                      <Marker position={[parseLocData(solicitud.ubicacionOrigen).lat, parseLocData(solicitud.ubicacionOrigen).lng]}>
+                      <Marker position={[parseLocData(solicitud.ubicacionOrigen).lat, parseLocData(solicitud.ubicacionOrigen).lng]} icon={originIcon}>
                         <Popup>Tu ubicación de origen.</Popup>
                       </Marker>
                     )}
 
-                    <RoutingMachine 
-                        waypoints={[
-                          ubicacionConductor, 
-                          {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng}
-                        ]}
-                        onRouteFound={setTrackingSummary}
-                        color="#10b981"
-                    />
+                    {parseLocData(solicitud.ubicacionDestino).lat && (
+                      <Marker position={[parseLocData(solicitud.ubicacionDestino).lat, parseLocData(solicitud.ubicacionDestino).lng]} icon={destinationIcon}>
+                        <Popup>Destino Final.</Popup>
+                      </Marker>
+                    )}
+
+                    {/* Trazado Inteligente Completo: Conductor -> Socio -> Destino */}
+                    {parseLocData(solicitud.ubicacionDestino).lat ? (
+                       <RoutingMachine 
+                          waypoints={[
+                            ubicacionConductor, 
+                            {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng},
+                             {lat: parseLocData(solicitud.ubicacionDestino).lat, lng: parseLocData(solicitud.ubicacionDestino).lng}
+                          ]}
+                          onRouteFound={setTrackingSummary}
+                          color="#10b981"
+                       />
+                    ) : (
+                       <RoutingMachine 
+                          waypoints={[
+                            ubicacionConductor, 
+                            {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng}
+                          ]}
+                          onRouteFound={setTrackingSummary}
+                          color="#10b981"
+                       />
+                    )}
                   </MapContainer>
                 )}
                 

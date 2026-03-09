@@ -45,7 +45,15 @@ export default function RoutingMachine({ waypoints, onRouteFound, color = '#3b82
   useEffect(() => {
     return () => {
       if (routingControlRef.current) {
-        try { map.removeControl(routingControlRef.current); } catch(e){}
+        try { 
+          // OSRM backend can be slow, if component unmounts quickly, it throws removeLayer error. 
+          // We safely remove it from the map.
+          if (map && map.removeControl) {
+             map.removeControl(routingControlRef.current); 
+          }
+        } catch(e) {
+          console.log("Safe unmount routing", e);
+        }
       }
     };
   }, [map]);
