@@ -43,7 +43,7 @@ export default function ConductorDashboard() {
     );
   };
 
-  const { connectToHub, isConnected, joinConductorGroup, enviarUbicacion, on, off } = useSignalR();
+  const { connectToHub, isConnected, joinConductorGroup, enviarUbicacion, desconectarConductor, on, off } = useSignalR();
 
   useEffect(() => {
     if (!userId || role !== 'CONDUCTOR') {
@@ -108,47 +108,59 @@ export default function ConductorDashboard() {
     }
   }, [isConnected, userId, joinConductorGroup, on, off]);
 
-  // Geolocalización Real del Conductor
+  // Geolocalización Real del Conductor (Envía siempre, tenga o no servicio)
   useEffect(() => {
     let watchId;
-    if (servicioActual && isConnected) {
+    if (isConnected) {
       if (navigator.geolocation) {
          watchId = navigator.geolocation.watchPosition(
            (pos) => {
              const currentLat = pos.coords.latitude;
              const currentLng = pos.coords.longitude;
              setMiUbicacion({ lat: currentLat, lng: currentLng });
-             // Envia la ubicación real por SignalR hacia el Socio y el Admin
+             
+             // Determinar estado actual a enviar
+             const estadoAEnviar = servicioActual ? servicioActual.estado : 'Libre';
+             const idSocioAEnviar = servicioActual ? servicioActual.idSocio : 0;
+             const origen = servicioActual ? servicioActual.ubicacionOrigen : '';
+             const destino = servicioActual ? servicioActual.ubicacionDestino : '';
+
+             // Envia la ubicación real por SignalR hacia el Admin (y al Socio si aplica)
              enviarUbicacion(
-               servicioActual.idSocio, 
+               idSocioAEnviar, 
                userId, 
                name, 
                placa || 'N/A', 
                currentLat, 
                currentLng, 
-               servicioActual.estado,
-               servicioActual.ubicacionOrigen,
-               servicioActual.ubicacionDestino
+               estadoAEnviar,
+               origen,
+               destino
              );
            },
            (err) => {
              console.error("GPS Error:", err);
              // Fallback si rechaza GPS en localhost para demostración
              if (!miUbicacion) {
-                const origenParsed = parseLocData(servicioActual.ubicacionOrigen);
-                const fallbackLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
-                const fallbackLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
+                const fallbackLat = -12.055374;
+                const fallbackLng = -77.042793;
                 setMiUbicacion({ lat: fallbackLat, lng: fallbackLng });
+                
+                const estadoAEnviar = servicioActual ? servicioActual.estado : 'Libre';
+                const idSocioAEnviar = servicioActual ? servicioActual.idSocio : 0;
+                const origen = servicioActual ? servicioActual.ubicacionOrigen : '';
+                const destino = servicioActual ? servicioActual.ubicacionDestino : '';
+
                 enviarUbicacion(
-                  servicioActual.idSocio, 
+                  idSocioAEnviar, 
                   userId, 
                   name, 
                   placa || 'N/A', 
                   fallbackLat, 
                   fallbackLng, 
-                  servicioActual.estado,
-                  servicioActual.ubicacionOrigen,
-                  servicioActual.ubicacionDestino
+                  estadoAEnviar,
+                  origen,
+                  destino
                 );
              }
            },
@@ -162,7 +174,7 @@ export default function ConductorDashboard() {
          navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [servicioActual, isConnected, enviarUbicacion]);
+  }, [servicioActual, isConnected, enviarUbicacion, userId, name, placa]);
 
   const aceptarSolicitud = async (idSolicitud) => {
     try {
@@ -199,7 +211,16 @@ export default function ConductorDashboard() {
               <p className="text-sm text-slate-500">Conductor: {name} | Grúa Lista</p>
             </div>
           </div>
-          <button onClick={() => { logout(); navigate('/'); }} className="text-sm border border-slate-300 px-4 py-2 hover:bg-slate-50 rounded-lg transition font-medium">Salir</button>
+          <button 
+            onClick={() => { 
+                desconectarConductor(userId);
+                logout(); 
+                navigate('/'); 
+            }} 
+            className="text-sm border border-slate-300 px-4 py-2 hover:bg-slate-50 rounded-lg transition font-medium"
+          >
+            Salir
+          </button>
         </div>
 
         <div className="flex justify-between items-center mb-6">

@@ -77,6 +77,16 @@ export const useSignalR = () => {
     }
   }, [connection, isConnected]);
 
+  const desconectarConductor = useCallback(async (idConductor) => {
+    if (connection && isConnected) {
+      try {
+        await connection.invoke('DesconectarConductor', idConductor);
+      } catch (error) {
+        console.error('Failed to disconnect conductor', error);
+      }
+    }
+  }, [connection, isConnected]);
+
   const on = useCallback((eventName, callback) => {
     if (connection) {
       connection.on(eventName, callback);
@@ -97,6 +107,7 @@ export const useSignalR = () => {
     joinSocioGroup,
     joinAdminGroup,
     enviarUbicacion,
+    desconectarConductor,
     on,
     off
   };

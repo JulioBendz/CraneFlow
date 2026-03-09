@@ -65,4 +65,10 @@ public class CraneHub : Hub
             lastUpdate = DateTime.UtcNow
         });
     }
+
+    // El Conductor llama a esto al cerrar sesión
+    public async Task DesconectarConductor(int idConductor)
+    {
+        await Clients.Group("Admins").SendAsync("ConductorDesconectado", idConductor);
+    }
 }

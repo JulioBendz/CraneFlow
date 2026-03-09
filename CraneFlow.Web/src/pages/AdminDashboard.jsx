@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useSignalR } from '../hooks/useSignalR';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, Users, Truck, Activity } from 'lucide-react';
+import { ShieldAlert, Users, Truck, Activity, MapPin, Navigation, Clock } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { carIcon, originIcon, destinationIcon } from '../components/MapIcons';
@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   // { [idConductor]: { lat, lng, nombre, placa, estado, origen, destino, lastUpdate } }
   const [flota, setFlota] = useState({});
   const [selectedConductorId, setSelectedConductorId] = useState(null);
+  const [adminRouteSummary, setAdminRouteSummary] = useState(null);
 
   const { connectToHub, isConnected, joinAdminGroup, on, off } = useSignalR();
 
@@ -50,10 +51,23 @@ export default function AdminDashboard() {
         }));
       };
 
+      const handleConductorDesconectado = (conductorId) => {
+        setFlota((prev) => {
+          const newFlota = { ...prev };
+          delete newFlota[conductorId];
+          return newFlota;
+        });
+        if (selectedConductorId === conductorId) {
+          setSelectedConductorId(null);
+        }
+      };
+
       on('RecibirUbicacionGlobal', handleUbicacionGlobal);
+      on('ConductorDesconectado', handleConductorDesconectado);
 
       return () => {
         off('RecibirUbicacionGlobal', handleUbicacionGlobal);
+        off('ConductorDesconectado', handleConductorDesconectado);
       };
     }
   }, [isConnected, userId, joinAdminGroup, on, off]);
@@ -101,12 +115,17 @@ export default function AdminDashboard() {
               <p className="text-sm text-slate-500">Esperando señal GPS de la flota...</p>
             </div>
           ) : (
-            Object.values(flota).map(c => (
+            Object.values(flota).map(c => {
+              const isSelected = selectedConductorId === c.idConductor;
+              return (
               <div 
                 key={c.idConductor} 
-                onClick={() => setSelectedConductorId(selectedConductorId === c.idConductor ? null : c.idConductor)}
+                onClick={() => {
+                  setAdminRouteSummary(null);
+                  setSelectedConductorId(selectedConductorId === c.idConductor ? null : c.idConductor);
+                }}
                 className={`border p-4 rounded-xl transition-all cursor-pointer ${
-                  selectedConductorId === c.idConductor 
+                  isSelected 
                     ? 'bg-slate-800 border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.2)] block'
                     : 'bg-slate-900/50 hover:bg-slate-900 border-slate-700'
                 }`}
@@ -130,8 +149,42 @@ export default function AdminDashboard() {
                      En línea
                    </div>
                 </div>
+
+                 {/* Detalles Extendidos si está seleccionado */}
+                 {isSelected && (c.estado === 'Aceptada' || c.estado === 'EnCamino') && (
+                   <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex items-start gap-2">
+                         <MapPin size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                         <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Origen</p>
+                            <p className="text-xs text-slate-300 line-clamp-1">{parseLocData(c.origen).text || 'Ver en mapa'}</p>
+                         </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                         <Navigation size={14} className="text-indigo-500 shrink-0 mt-0.5" />
+                         <div>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Destino</p>
+                            <p className="text-xs text-slate-300 line-clamp-1">{parseLocData(c.destino).text || 'Pendiente'}</p>
+                         </div>
+                      </div>
+                      
+                      {adminRouteSummary && (
+                        <div className="bg-slate-800/80 p-2 rounded-lg border border-slate-700 mt-2 flex justify-between items-center">
+                           <div className="flex items-center gap-1.5 text-amber-400">
+                              <Clock size={12} />
+                              <span className="text-[10px] font-bold">{adminRouteSummary.time} min</span>
+                           </div>
+                           <div className="flex items-center gap-1.5 text-emerald-400">
+                              <Activity size={12} />
+                              <span className="text-[10px] font-bold">{adminRouteSummary.distance} km</span>
+                           </div>
+                        </div>
+                      )}
+                   </div>
+                 )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -211,6 +264,9 @@ export default function AdminDashboard() {
                       start={[c.lat, c.lng]} 
                       end={[origenObj.lat, origenObj.lng]} 
                       color="#10b981" 
+                      onRouteFound={(summary) => {
+                        if (isSelected) setAdminRouteSummary(summary);
+                      }}
                     />
                     
                     {/* Ruta Origen Incidencia -> Destino Incidencia (Solo si el destino existe) */}
