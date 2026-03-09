@@ -10,9 +10,13 @@ export default function RoutingMachine({ waypoints, onRouteFound, color = '#3b82
   const onRouteFoundRef = useRef(onRouteFound);
   useEffect(() => { onRouteFoundRef.current = onRouteFound; }, [onRouteFound]);
 
+  // Prevenir loop infinito comparando contenido real:
+  const waypointsJSON = JSON.stringify(waypoints);
+
   useEffect(() => {
-    if (!waypoints || waypoints.length < 2) return;
-    const validWaypoints = waypoints.filter(wp => wp && wp.lat && wp.lng);
+    const parsedWaypoints = JSON.parse(waypointsJSON);
+    if (!parsedWaypoints || parsedWaypoints.length < 2) return;
+    const validWaypoints = parsedWaypoints.filter(wp => wp && wp.lat && wp.lng);
     if (validWaypoints.length < 2) return;
 
     if (!routingControlRef.current) {
@@ -40,16 +44,18 @@ export default function RoutingMachine({ waypoints, onRouteFound, color = '#3b82
     } else {
       routingControlRef.current.setWaypoints(validWaypoints.map(wp => L.latLng(wp.lat, wp.lng)));
     }
-  }, [map, waypoints, color]);
+  }, [map, waypointsJSON, color]);
 
   useEffect(() => {
     return () => {
       if (routingControlRef.current) {
         try { 
           // OSRM backend can be slow, if component unmounts quickly, it throws removeLayer error. 
-          // We safely remove it from the map.
           if (map && map.removeControl) {
-             map.removeControl(routingControlRef.current); 
+             // Nullify the map reference inside control to prevent async callbacks from drawing
+             const ctrl = routingControlRef.current;
+             map.removeControl(ctrl); 
+             ctrl._map = null;
           }
         } catch(e) {
           console.log("Safe unmount routing", e);
