@@ -3,6 +3,8 @@ import Login from './pages/Login';
 import SocioDashboard from './pages/SocioDashboard';
 import ConductorDashboard from './pages/ConductorDashboard';
 
+import AdminDashboard from './pages/AdminDashboard';
+
 function App() {
   return (
     <Router>
@@ -10,6 +12,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/socio" element={<SocioDashboard />} />
         <Route path="/conductor" element={<ConductorDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </Router>
   );

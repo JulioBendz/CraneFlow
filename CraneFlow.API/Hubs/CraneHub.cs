@@ -38,9 +38,29 @@ public class CraneHub : Hub
         _logger.LogInformation("Socio {IdSocio} unido a su grupo ({ConnectionId})", idSocio, Context.ConnectionId);
     }
 
-    // Nuevo: El Conductor en ruta transmite su GPS directo al Socio (No se guarda en DB por rendimiento)
-    public async Task EnviarUbicacion(int idSocio, double lat, double lng)
+    // El cliente Administrador llama a esto al conectarse
+    public async Task JoinAdminGroup()
     {
+        await Groups.AddToGroupAsync(Context.ConnectionId, "Admins");
+        _logger.LogInformation("Admin {ConnectionId} unido al grupo general de Monitoreo", Context.ConnectionId);
+    }
+
+    // El Conductor en ruta transmite su GPS directo al Socio y en broadcast a los Admins (Radar global)
+    public async Task EnviarUbicacion(int idSocio, int idConductor, string nombreConductor, string placa, double lat, double lng, string estado)
+    {
+        // 1. Enviar mensaje privado 1 a 1 para el socio cliente 
+        // (Nota: el front actual esparaba lat, lng. Le enviaremos un obj completo pero mantenemos retro-compat en los args)
         await Clients.Group($"Socio_{idSocio}").SendAsync("RecibirUbicacion", lat, lng);
+        
+        // 2. Broadcast de telemetría a todos los paneles de Admin
+        await Clients.Group("Admins").SendAsync("RecibirUbicacionGlobal", new { 
+            idConductor = idConductor, 
+            nombre = nombreConductor, 
+            placa = placa,
+            lat = lat, 
+            lng = lng, 
+            estado = estado,
+            lastUpdate = DateTime.UtcNow
+        });
     }
 }

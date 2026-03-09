@@ -63,9 +63,26 @@ public class AuthController : ControllerBase
                     new { request.Nombre, Placa = dynPlaca });
             }
         }
+        else if (request.Role.ToUpper() == "ADMINISTRADOR")
+        {
+            var exists = await connection.QueryFirstOrDefaultAsync<int?>(
+                "SELECT Id FROM Socios WHERE Nombre = @Nombre AND Telefono = 'ADMIN'", new { request.Nombre });
+            
+            if (exists.HasValue) 
+            {
+                userId = exists.Value;
+            }
+            else 
+            {
+                // Reutilizamos la tabla Socios pero con "ADMIN" como bandera en telefono para demo fácil
+                userId = await connection.QuerySingleAsync<int>(
+                    "INSERT INTO Socios (Nombre, Telefono) OUTPUT INSERTED.Id VALUES (@Nombre, 'ADMIN')", 
+                    new { request.Nombre });
+            }
+        }
         else
         {
-            return BadRequest(new ApiResponse<int>(0, "Rol inválido. Debe ser SOCIO o CONDUCTOR") { Success = false });
+            return BadRequest(new ApiResponse<int>(0, "Rol inválido. Debe ser SOCIO, CONDUCTOR o ADMINISTRADOR") { Success = false });
         }
 
         return Ok(new ApiResponse<int>(userId, "Login exitoso"));

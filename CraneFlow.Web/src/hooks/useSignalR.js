@@ -57,10 +57,20 @@ export const useSignalR = () => {
     }
   }, [connection, isConnected]);
 
-  const enviarUbicacion = useCallback(async (idSocio, lat, lng) => {
+  const joinAdminGroup = useCallback(async () => {
     if (connection && isConnected) {
       try {
-        await connection.invoke('EnviarUbicacion', idSocio, lat, lng);
+        await connection.invoke('JoinAdminGroup');
+      } catch (error) {
+        console.error('Failed to join admin group', error);
+      }
+    }
+  }, [connection, isConnected]);
+
+  const enviarUbicacion = useCallback(async (idSocio, idConductor, nombreConductor, placa, lat, lng, estado) => {
+    if (connection && isConnected) {
+      try {
+        await connection.invoke('EnviarUbicacion', idSocio, idConductor, nombreConductor, placa, lat, lng, estado);
       } catch (error) {
         console.error('Failed to enviar ubicacion', error);
       }
@@ -85,6 +95,7 @@ export const useSignalR = () => {
     connectToHub,
     joinConductorGroup,
     joinSocioGroup,
+    joinAdminGroup,
     enviarUbicacion,
     on,
     off

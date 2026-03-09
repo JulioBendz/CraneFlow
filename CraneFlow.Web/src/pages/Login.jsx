@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { Car, User } from 'lucide-react';
+import { Car, User, ShieldAlert } from 'lucide-react';
 
 import apiClient from '../api/apiClient';
 
@@ -29,8 +29,10 @@ export default function Login() {
 
         if (role === 'SOCIO') {
           navigate('/socio');
-        } else {
+        } else if (role === 'CONDUCTOR') {
           navigate('/conductor');
+        } else if (role === 'ADMINISTRADOR') {
+          navigate('/admin');
         }
       }
     } catch (e) {
@@ -62,32 +64,45 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Rendimiento como:</label>
-            <div className="grid grid-cols-2 gap-4">
+            <label className="block text-sm font-medium text-slate-300 mb-2">Ingresar como:</label>
+            <div className="grid grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => setRole('SOCIO')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
                   role === 'SOCIO'
                     ? 'bg-blue-600/20 border-blue-500 text-blue-400'
                     : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
                 }`}
               >
-                <User size={24} className="mb-2" />
-                <span className="font-medium">Socio</span>
+                <User size={20} className="mb-2" />
+                <span className="text-sm font-medium">Socio</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole('CONDUCTOR')}
-                className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
                   role === 'CONDUCTOR'
                     ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400'
                     : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
                 }`}
               >
-                <Car size={24} className="mb-2" />
-                <span className="font-medium">Conductor</span>
+                <Car size={20} className="mb-2" />
+                <span className="text-sm font-medium">Conductor</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole('ADMINISTRADOR')}
+                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
+                  role === 'ADMINISTRADOR'
+                    ? 'bg-purple-600/20 border-purple-500 text-purple-400'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                }`}
+              >
+                <ShieldAlert size={20} className="mb-2" />
+                <span className="text-sm font-medium">Admin</span>
               </button>
             </div>
           </div>

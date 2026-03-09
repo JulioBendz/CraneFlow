@@ -118,8 +118,8 @@ export default function ConductorDashboard() {
              const currentLat = pos.coords.latitude;
              const currentLng = pos.coords.longitude;
              setMiUbicacion({ lat: currentLat, lng: currentLng });
-             // Envia la ubicación real por SignalR hacia el Socio
-             enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
+             // Envia la ubicación real por SignalR hacia el Socio y el Admin
+             enviarUbicacion(servicioActual.idSocio, userId, name, servicioActual.placaGrua || 'Desconocida', currentLat, currentLng, servicioActual.estado);
            },
            (err) => {
              console.error("GPS Error:", err);
@@ -129,7 +129,7 @@ export default function ConductorDashboard() {
                 const fallbackLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
                 const fallbackLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
                 setMiUbicacion({ lat: fallbackLat, lng: fallbackLng });
-                enviarUbicacion(servicioActual.idSocio, fallbackLat, fallbackLng);
+                enviarUbicacion(servicioActual.idSocio, userId, name, servicioActual.placaGrua || 'Desconocida', fallbackLat, fallbackLng, servicioActual.estado);
              }
            },
            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
