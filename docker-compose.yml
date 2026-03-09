@@ -1,15 +1,46 @@
 services:
   sql-server:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: CraneFlow_DB
-    ports:
-      - "1433:1433"
+    container_name: craneflow-db
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=TuPasswordSeguro123! # ¡Cambia esto!
+      - MSSQL_SA_PASSWORD=TuPasswordSeguro123! # ¡Cambia esto por uno real!
+      - MSSQL_PID=Developer
     networks:
-      - craneflow-network
+      - craneflow-net
+    restart: always
+
+  backend:
+    build:
+      context: .
+      dockerfile: CraneFlow.API/Dockerfile
+    container_name: craneflow-api
+    depends_on:
+      - sql-server
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sql-server,1433;Database=CraneFlowDB;User Id=sa;Password=TuPasswordSeguro123!;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Production
+    networks:
+      - craneflow-net
+    # No exponemos puerto al exterior, solo el Nginx Host entrará por IP interna de Docker si se desea,
+    # o mapeamos a un puerto local que el Nginx del Host pueda ver.
+    ports:
+      - "127.0.0.1:5001:8080"
+    restart: always
+
+  frontend:
+    build:
+      context: ./CraneFlow.Web
+      dockerfile: Dockerfile
+    container_name: craneflow-web
+    depends_on:
+      - backend
+    networks:
+      - craneflow-net
+    ports:
+      - "127.0.0.1:5080:80"
+    restart: always
 
 networks:
-  craneflow-network:
+  craneflow-net:
     driver: bridge
