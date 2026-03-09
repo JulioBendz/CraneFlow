@@ -40,13 +40,34 @@ export default function SocioDashboard() {
   };
 
   // Click handler map component
+  const getAddressFromCoords = async (lat, lng) => {
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+      const data = await resp.json();
+      if (data && data.display_name) {
+        // Formateo para que no sea inmensamente largo
+        const address = data.address;
+        const shortName = address.road || address.neighbourhood || address.suburb || data.display_name.split(',')[0];
+        const city = address.city || address.town || address.village || "";
+        return `${shortName}${city ? ', ' + city : ''}`;
+      }
+    } catch (e) {
+      console.warn("Geocoding failed", e);
+    }
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  };
+
   const LocationPicker = () => {
     useMapEvents({
-      click(e) {
+      async click(e) {
         if (mapMode === 'origen') {
           setOrigenPos(e.latlng);
+          const address = await getAddressFromCoords(e.latlng.lat, e.latlng.lng);
+          setOrigen(address);
         } else if (mapMode === 'destino') {
           setDestinoPos(e.latlng);
+          const address = await getAddressFromCoords(e.latlng.lat, e.latlng.lng);
+          setDestino(address);
         }
       },
     });
@@ -94,13 +115,17 @@ export default function SocioDashboard() {
   useEffect(() => {
     if (!solicitud && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setOrigenPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setOrigen("Ubicación Actual (GPS)");
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setOrigenPos({ lat, lng });
+          const address = await getAddressFromCoords(lat, lng);
+          setOrigen(address);
         },
         (err) => {
           console.log("No se pudo obtener GPS, usando Lima como default");
           setOrigenPos({ lat: -12.046374, lng: -77.042793 });
+          setOrigen("Lima Centro (-12.046, -77.042)");
           setError("No se pudo leer tu GPS. Ubica el marcador manualmente.");
         }
       );
@@ -229,7 +254,12 @@ export default function SocioDashboard() {
                     <Marker 
                       position={origenPos} 
                       draggable={true} 
-                      eventHandlers={{ dragend: (e) => setOrigenPos(e.target.getLatLng()) }}
+                      eventHandlers={{ dragend: async (e) => {
+                         const newPos = e.target.getLatLng();
+                         setOrigenPos(newPos);
+                         const addr = await getAddressFromCoords(newPos.lat, newPos.lng);
+                         setOrigen(addr);
+                      }}}
                       icon={originIcon}
                     />
                   )}
@@ -239,7 +269,12 @@ export default function SocioDashboard() {
                     <Marker 
                       position={destinoPos} 
                       draggable={true} 
-                      eventHandlers={{ dragend: (e) => setDestinoPos(e.target.getLatLng()) }}
+                      eventHandlers={{ dragend: async (e) => {
+                         const newPos = e.target.getLatLng();
+                         setDestinoPos(newPos);
+                         const addr = await getAddressFromCoords(newPos.lat, newPos.lng);
+                         setDestino(addr);
+                      }}}
                       icon={destinationIcon}
                     />
                   )}
@@ -260,11 +295,11 @@ export default function SocioDashboard() {
                 )}
                 
                 {/* Route Summary */}
-                {routeSummary && mapMode !== 'origen' && (
+                {routeSummary && (origenPos && destinoPos) && (
                   <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-indigo-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
-                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1"/> {routeSummary.time} min</span>
+                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1"/> Viaje Esm: {routeSummary.time} min</span>
                     <div className="w-px h-5 bg-slate-600"></div>
-                    <span className="flex items-center text-indigo-400"><Navigation size={16} className="mr-1"/> {routeSummary.distance} km</span>
+                    <span className="flex items-center text-indigo-400"><Navigation size={16} className="mr-1"/> Distancia: {routeSummary.distance} km</span>
                   </div>
                 )}
 
