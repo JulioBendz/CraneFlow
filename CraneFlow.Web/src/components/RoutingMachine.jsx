@@ -24,10 +24,11 @@ export default function RoutingMachine({ waypoints, onRouteFound, color = '#3b82
       const control = L.Routing.control({
         waypoints: validWaypoints.map(wp => L.latLng(wp.lat, wp.lng)),
         routeWhileDragging: false,
+        addWaypoints: false, // Evita puntos arrastrables en la línea azul
         showAlternatives: false,
         fitSelectedRoutes: true,
         show: false, 
-        lineOptions: { styles: [{ color: color, opacity: 0.8, weight: 5 }] },
+        lineOptions: { styles: [{ color: color, opacity: 0.9, weight: 6 }] },
         createMarker: () => null
       }).addTo(map);
 
@@ -60,6 +61,7 @@ export default function RoutingMachine({ waypoints, onRouteFound, color = '#3b82
         } catch(e) {
           console.log("Safe unmount routing", e);
         }
+        routingControlRef.current = null; // FIX REACT 18 STRICT MODE BUG: Must nullify ref so it regenerates on remount
       }
     };
   }, [map]);

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Clock, CheckCircle2, XCircle, Crosshair } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import RoutingMachine from '../components/RoutingMachine';
-import { blueDotIcon, originIcon, destinationIcon, carIcon } from '../components/MapIcons';
+import { blueDotIcon, originIcon, destinationIcon, carIcon, pickingOriginIcon, pickingDestinationIcon } from '../components/MapIcons';
 
 export default function SocioDashboard() {
   const { userId, name, role, logout } = useAuthStore();
@@ -260,7 +260,7 @@ export default function SocioDashboard() {
                          const addr = await getAddressFromCoords(newPos.lat, newPos.lng);
                          setOrigen(addr);
                       }}}
-                      icon={originIcon}
+                      icon={pickingOriginIcon}
                     />
                   )}
 
@@ -275,7 +275,7 @@ export default function SocioDashboard() {
                          const addr = await getAddressFromCoords(newPos.lat, newPos.lng);
                          setDestino(addr);
                       }}}
-                      icon={destinationIcon}
+                      icon={pickingDestinationIcon}
                     />
                   )}
 
