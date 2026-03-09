@@ -3,8 +3,8 @@ import { useAuthStore } from '../store/authStore';
 import { useSignalR } from '../hooks/useSignalR';
 import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, Clock, CheckCircle, Bell } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapPin, Navigation, Clock, CheckCircle, Bell, LocateFixed } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import RoutingMachine from '../components/RoutingMachine';
 import { blueDotIcon, originIcon, destinationIcon } from '../components/MapIcons';
 
@@ -26,6 +26,21 @@ export default function ConductorDashboard() {
        return { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]), text: parts[1] };
     }
     return { lat: null, lng: null, text: str };
+  };
+
+  const RecenterButton = ({ pos }) => {
+    const map = useMap();
+    if (!pos) return null;
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); map.flyTo([pos.lat, pos.lng], 16); }}
+        className="absolute bottom-6 right-4 z-[1000] bg-white text-slate-700 p-2.5 rounded-full shadow-xl border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition flex items-center justify-center"
+        title="Centrar en mi ubicación"
+      >
+        <LocateFixed size={20} />
+      </button>
+    );
   };
 
   const { connectToHub, isConnected, joinConductorGroup, enviarUbicacion, on, off } = useSignalR();
@@ -219,6 +234,8 @@ export default function ConductorDashboard() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   
+                  <RecenterButton pos={miUbicacion} />
+
                   {/* Marcadores Estáticos Customizados */}
                   {miUbicacion && (
                     <Marker position={[miUbicacion.lat, miUbicacion.lng]} icon={blueDotIcon}>

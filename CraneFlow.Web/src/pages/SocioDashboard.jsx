@@ -3,8 +3,8 @@ import { useAuthStore } from '../store/authStore';
 import { useSignalR } from '../hooks/useSignalR';
 import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, Clock, CheckCircle2, XCircle, Crosshair } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapPin, Navigation, Clock, CheckCircle2, XCircle, Crosshair, LocateFixed } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import RoutingMachine from '../components/RoutingMachine';
 import { blueDotIcon, originIcon, destinationIcon, carIcon, pickingOriginIcon, pickingDestinationIcon } from '../components/MapIcons';
 
@@ -23,6 +23,8 @@ export default function SocioDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ubicacionConductor, setUbicacionConductor] = useState(null);
+  const [miUbicacionReal, setMiUbicacionReal] = useState(null);
+  const hasSetInitialPos = React.useRef(false);
 
   // Routig Summaries
   const [routeSummary, setRouteSummary] = useState(null);
@@ -74,6 +76,21 @@ export default function SocioDashboard() {
     return null;
   };
 
+  const RecenterButton = ({ pos, isTracking }) => {
+    const map = useMap();
+    if (!pos) return null;
+    return (
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); map.flyTo([pos.lat, pos.lng], 16); }}
+        className={`absolute ${isTracking ? 'bottom-6 left-4' : 'bottom-6 right-4'} z-[1000] bg-white text-slate-700 p-2.5 rounded-full shadow-xl border border-slate-200 hover:bg-slate-50 hover:text-blue-600 transition flex items-center justify-center`}
+        title="Centrar en mi ubicación"
+      >
+        <LocateFixed size={20} />
+      </button>
+    );
+  };
+
   const { connectToHub, isConnected, joinSocioGroup, on, off } = useSignalR();
 
   useEffect(() => {
@@ -111,25 +128,39 @@ export default function SocioDashboard() {
     }
   }, [isConnected, userId, joinSocioGroup, on, off, solicitud]);
 
-  // Obtener Ubicación automáticamente
+  // Obtener Ubicación automáticamente y seguir en real-time
   useEffect(() => {
-    if (!solicitud && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+    let watchId;
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
         async (pos) => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          setOrigenPos({ lat, lng });
-          const address = await getAddressFromCoords(lat, lng);
-          setOrigen(address);
+          setMiUbicacionReal({ lat, lng });
+
+          // Set initial Origin marker just once
+          if (!hasSetInitialPos.current && !solicitud) {
+            setOrigenPos({ lat, lng });
+            const address = await getAddressFromCoords(lat, lng);
+            setOrigen(address);
+            hasSetInitialPos.current = true;
+          }
         },
         (err) => {
-          console.log("No se pudo obtener GPS, usando Lima como default");
-          setOrigenPos({ lat: -12.046374, lng: -77.042793 });
-          setOrigen("Lima Centro (-12.046, -77.042)");
-          setError("No se pudo leer tu GPS. Ubica el marcador manualmente.");
-        }
+          console.log("No se pudo obtener GPS en RT", err);
+          if (!hasSetInitialPos.current && !solicitud) {
+            setOrigenPos({ lat: -12.046374, lng: -77.042793 });
+            setOrigen("Lima Centro (-12.046, -77.042)");
+            setError("No se pudo leer tu GPS. Ubica el marcador manualmente.");
+            hasSetInitialPos.current = true;
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     }
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
   }, [solicitud]);
 
   const handleSubmit = async (e) => {
@@ -248,6 +279,16 @@ export default function SocioDashboard() {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
                   <LocationPicker />
+                  
+                  {/* Recenter Button */}
+                  <RecenterButton pos={miUbicacionReal} />
+
+                  {/* Marker Real del Usuario */}
+                  {miUbicacionReal && (
+                    <Marker position={miUbicacionReal} icon={blueDotIcon}>
+                       <Popup>Tú estás aquí</Popup>
+                    </Marker>
+                  )}
 
                   {/* Marker de Origen Draggeable */}
                   {origenPos && (
@@ -382,6 +423,14 @@ export default function SocioDashboard() {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     
+                    <RecenterButton pos={miUbicacionReal} isTracking={true} />
+
+                    {miUbicacionReal && (
+                      <Marker position={miUbicacionReal} icon={blueDotIcon}>
+                        <Popup>Tu ubicación en tiempo real</Popup>
+                      </Marker>
+                    )}
+
                     <Marker position={[ubicacionConductor.lat, ubicacionConductor.lng]} icon={carIcon}>
                       <Popup>La grúa de {solicitud.nombreConductor} está aquí.</Popup>
                     </Marker>
