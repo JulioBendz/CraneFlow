@@ -296,10 +296,10 @@ export default function SocioDashboard() {
                 
                 {/* Route Summary */}
                 {routeSummary && (origenPos && destinoPos) && (
-                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-indigo-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
-                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1"/> Viaje Esm: {routeSummary.time} min</span>
-                    <div className="w-px h-5 bg-slate-600"></div>
-                    <span className="flex items-center text-indigo-400"><Navigation size={16} className="mr-1"/> Distancia: {routeSummary.distance} km</span>
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-indigo-500/50 text-white px-3 py-1.5 rounded-full shadow-lg z-[1000] flex gap-3 text-xs font-semibold items-center whitespace-nowrap">
+                    <span className="flex items-center text-amber-400"><Clock size={14} className="mr-1"/> {routeSummary.time} min</span>
+                    <div className="w-px h-3 bg-slate-600"></div>
+                    <span className="flex items-center text-indigo-400"><Navigation size={14} className="mr-1"/> {routeSummary.distance} km</span>
                   </div>
                 )}
 
@@ -400,15 +400,24 @@ export default function SocioDashboard() {
 
                     {/* Trazado Inteligente Completo: Conductor -> Socio -> Destino */}
                     {parseLocData(solicitud.ubicacionDestino).lat ? (
-                       <RoutingMachine 
-                          waypoints={[
-                            ubicacionConductor, 
-                            {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng},
-                             {lat: parseLocData(solicitud.ubicacionDestino).lat, lng: parseLocData(solicitud.ubicacionDestino).lng}
-                          ]}
-                          onRouteFound={setTrackingSummary}
-                          color="#10b981"
-                       />
+                       <>
+                         <RoutingMachine 
+                            waypoints={[
+                              ubicacionConductor, 
+                              {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng}
+                            ]}
+                            onRouteFound={setTrackingSummary}
+                            color="#10b981" // Emerald / Green for pickup
+                         />
+                         <RoutingMachine 
+                            waypoints={[
+                              {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng},
+                              {lat: parseLocData(solicitud.ubicacionDestino).lat, lng: parseLocData(solicitud.ubicacionDestino).lng}
+                            ]}
+                            // no route found hook needed here unless we want combined distance.
+                            color="#6366f1" // Indigo / Purple for dropoff
+                         />
+                       </>
                     ) : (
                        <RoutingMachine 
                           waypoints={[
@@ -424,10 +433,10 @@ export default function SocioDashboard() {
                 
                 {/* Tracking Route Summary */}
                 {trackingSummary && (
-                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-emerald-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
-                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1.5"/> ETA: {trackingSummary.time} min</span>
-                    <div className="w-px h-5 bg-slate-600"></div>
-                    <span className="flex items-center text-emerald-400"><Navigation size={16} className="mr-1.5"/> {trackingSummary.distance} km</span>
+                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-emerald-500/50 text-white px-3 py-1.5 rounded-full shadow-lg z-[1000] flex gap-3 text-xs font-semibold items-center whitespace-nowrap">
+                    <span className="flex items-center text-amber-400"><Clock size={14} className="mr-1"/> ETA: {trackingSummary.time} min</span>
+                    <div className="w-px h-3 bg-slate-600"></div>
+                    <span className="flex items-center text-emerald-400"><Navigation size={14} className="mr-1"/> {trackingSummary.distance} km</span>
                   </div>
                 )}
               </div>

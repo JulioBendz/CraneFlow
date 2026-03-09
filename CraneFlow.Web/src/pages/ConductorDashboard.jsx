@@ -238,15 +238,24 @@ export default function ConductorDashboard() {
 
                   {/* Trazamos Múltiples Puntos: Conductor -> Origen -> Destino */}
                   {parseLocData(servicioActual.ubicacionDestino).lat ? (
-                    <RoutingMachine 
-                       waypoints={[
-                          miUbicacion,
-                          {lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng},
-                          {lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}
-                       ]} 
-                       onRouteFound={setRouteSummary}
-                       color="#3b82f6"
-                    />
+                    <>
+                      <RoutingMachine 
+                         waypoints={[
+                            miUbicacion,
+                            {lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}
+                         ]} 
+                         onRouteFound={setRouteSummary}
+                         color="#10b981" // Emerald / Green for pickup
+                      />
+                      <RoutingMachine 
+                         waypoints={[
+                            {lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng},
+                            {lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}
+                         ]} 
+                         // no summary needed here, main summary tracks distance to the next pickup
+                         color="#6366f1" // Indigo / Purple for dropoff
+                      />
+                    </>
                   ) : (
                     /* Si no hay destino, trazamos Conductor -> Origen solamente */
                     <RoutingMachine 
@@ -255,17 +264,17 @@ export default function ConductorDashboard() {
                           {lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}
                        ]} 
                        onRouteFound={setRouteSummary}
-                       color="#f59e0b"
+                       color="#10b981"
                     />
                   )}
                 </MapContainer>
 
                 {/* Route Summary */}
                 {routeSummary && (
-                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-blue-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
-                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1"/> ETA: {routeSummary.time} min</span>
-                    <div className="w-px h-5 bg-slate-600"></div>
-                    <span className="flex items-center text-blue-400"><Navigation size={16} className="mr-1"/> {routeSummary.distance} km rest.</span>
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-emerald-500/50 text-white px-3 py-1.5 rounded-full shadow-lg z-[1000] flex gap-3 text-xs font-semibold items-center whitespace-nowrap">
+                    <span className="flex items-center text-amber-400"><Clock size={14} className="mr-1"/> ETA: {routeSummary.time} min</span>
+                    <div className="w-px h-3 bg-slate-600"></div>
+                    <span className="flex items-center text-emerald-400"><Navigation size={14} className="mr-1"/> {routeSummary.distance} km rest.</span>
                   </div>
                 )}
 
