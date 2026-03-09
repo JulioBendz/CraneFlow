@@ -1,38 +1,54 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
 
-export default function RoutingMachine({ start, end }) {
+export default function RoutingMachine({ waypoints, onRouteFound, color = '#3b82f6' }) {
   const map = useMap();
+  const routingControlRef = useRef(null);
+  
+  const onRouteFoundRef = useRef(onRouteFound);
+  useEffect(() => { onRouteFoundRef.current = onRouteFound; }, [onRouteFound]);
 
   useEffect(() => {
-    if (!start || !end) return;
-    if (!start.lat || !start.lng || !end.lat || !end.lng) return;
+    if (!waypoints || waypoints.length < 2) return;
+    const validWaypoints = waypoints.filter(wp => wp && wp.lat && wp.lng);
+    if (validWaypoints.length < 2) return;
 
-    // Fix leaflet marker icon issue in React
-    delete L.Icon.Default.prototype._getIconUrl;
+    if (!routingControlRef.current) {
+      delete L.Icon.Default.prototype._getIconUrl;
+      const control = L.Routing.control({
+        waypoints: validWaypoints.map(wp => L.latLng(wp.lat, wp.lng)),
+        routeWhileDragging: false,
+        showAlternatives: false,
+        fitSelectedRoutes: true,
+        show: false, 
+        lineOptions: { styles: [{ color: color, opacity: 0.8, weight: 5 }] },
+        createMarker: () => null
+      }).addTo(map);
 
-    const routingControl = L.Routing.control({
-      waypoints: [
-        L.latLng(start.lat, start.lng),
-        L.latLng(end.lat, end.lng)
-      ],
-      routeWhileDragging: false,
-      showAlternatives: false,
-      fitSelectedRoutes: true,
-      show: false, // Ocultar el panel de instrucciones textual
-      createMarker: () => null // Usaremos nuestros propios marcadores React-Leaflet
-    }).addTo(map);
+      control.on('routesfound', function(e) {
+        if (e.routes && e.routes.length > 0 && onRouteFoundRef.current) {
+          const summary = e.routes[0].summary;
+          onRouteFoundRef.current({
+            distance: (summary.totalDistance / 1000).toFixed(1),
+            time: Math.round(summary.totalTime / 60)
+          });
+        }
+      });
+      routingControlRef.current = control;
+    } else {
+      routingControlRef.current.setWaypoints(validWaypoints.map(wp => L.latLng(wp.lat, wp.lng)));
+    }
+  }, [map, waypoints, color]);
 
+  useEffect(() => {
     return () => {
-      try {
-        map.removeControl(routingControl);
-      } catch (e) {
-        // En desmontaje rápido puede fallar
+      if (routingControlRef.current) {
+        try { map.removeControl(routingControlRef.current); } catch(e){}
       }
     };
-  }, [map, start, end]);
+  }, [map]);
 
   return null;
 }

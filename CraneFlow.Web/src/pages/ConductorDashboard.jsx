@@ -13,6 +13,8 @@ export default function ConductorDashboard() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [servicioActual, setServicioActual] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [miUbicacion, setMiUbicacion] = useState(null);
+  const [routeSummary, setRouteSummary] = useState(null);
 
   // Parse location string from DB: "lat:lng|Address" or just "Address"
   const parseLocData = (str) => {
@@ -99,13 +101,14 @@ export default function ConductorDashboard() {
       let currentLat = origenParsed.lat ? origenParsed.lat - 0.005 : -12.055374;
       let currentLng = origenParsed.lng ? origenParsed.lng - 0.005 : -77.042793;
 
-      // Iniciar el broadcasting
+      setMiUbicacion({lat: currentLat, lng: currentLng});
       enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
 
       intervalId = setInterval(() => {
         // Mover milimétricamente hacia el noreste
         currentLat += 0.0005;
         currentLng += 0.0005;
+        setMiUbicacion({lat: currentLat, lng: currentLng});
         enviarUbicacion(servicioActual.idSocio, currentLat, currentLng);
       }, 3000); // Actualizar cada 3 segundos
     }
@@ -205,23 +208,60 @@ export default function ConductorDashboard() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   
-                  {/* Si hay destino definido y tiene coordenadas, trazamos ruta */}
-                  {parseLocData(servicioActual.ubicacionDestino).lat ? (
-                    <RoutingMachine 
-                       start={{lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}} 
-                       end={{lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}} 
-                    />
-                  ) : (
-                    /* Si no hay destino, plantamos solo el Origen para que sepa dónde ir */
-                    <Marker position={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]}>
-                       <Popup>Origen del Cliente</Popup>
+                  {/* Marcadores Estáticos */}
+                  {miUbicacion && (
+                    <Marker position={[miUbicacion.lat, miUbicacion.lng]}>
+                      <Popup>Tú estás aquí</Popup>
                     </Marker>
                   )}
+                  {parseLocData(servicioActual.ubicacionOrigen).lat && (
+                     <Marker position={[parseLocData(servicioActual.ubicacionOrigen).lat, parseLocData(servicioActual.ubicacionOrigen).lng]}>
+                       <Popup>Origen del Cliente</Popup>
+                     </Marker>
+                  )}
+                  {parseLocData(servicioActual.ubicacionDestino).lat && (
+                     <Marker position={[parseLocData(servicioActual.ubicacionDestino).lat, parseLocData(servicioActual.ubicacionDestino).lng]}>
+                       <Popup>Taller / Destino</Popup>
+                     </Marker>
+                  )}
+
+                  {/* Trazamos Múltiples Puntos: Conductor -> Origen -> Destino */}
+                  {parseLocData(servicioActual.ubicacionDestino).lat ? (
+                    <RoutingMachine 
+                       waypoints={[
+                          miUbicacion,
+                          {lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng},
+                          {lat: parseLocData(servicioActual.ubicacionDestino).lat, lng: parseLocData(servicioActual.ubicacionDestino).lng}
+                       ]} 
+                       onRouteFound={setRouteSummary}
+                       color="#3b82f6"
+                    />
+                  ) : (
+                    /* Si no hay destino, trazamos Conductor -> Origen solamente */
+                    <RoutingMachine 
+                       waypoints={[
+                          miUbicacion,
+                          {lat: parseLocData(servicioActual.ubicacionOrigen).lat, lng: parseLocData(servicioActual.ubicacionOrigen).lng}
+                       ]} 
+                       onRouteFound={setRouteSummary}
+                       color="#f59e0b"
+                    />
+                  )}
                 </MapContainer>
+
+                {/* Route Summary */}
+                {routeSummary && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-blue-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
+                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1"/> ETA: {routeSummary.time} min</span>
+                    <div className="w-px h-5 bg-slate-600"></div>
+                    <span className="flex items-center text-blue-400"><Navigation size={16} className="mr-1"/> {routeSummary.distance} km rest.</span>
+                  </div>
+                )}
+
                 {/* Indicador de Ayuda */}
                 {!parseLocData(servicioActual.ubicacionDestino).lat && (
                   <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white text-xs px-3 py-1 rounded-full shadow-lg z-[1000] font-bold">
-                    Destino no especificado. Ve hacia el cliente.
+                    Ve hacia el cliente
                   </div>
                 )}
               </div>

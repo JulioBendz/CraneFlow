@@ -23,6 +23,10 @@ export default function SocioDashboard() {
   const [error, setError] = useState('');
   const [ubicacionConductor, setUbicacionConductor] = useState(null);
 
+  // Routig Summaries
+  const [routeSummary, setRouteSummary] = useState(null);
+  const [trackingSummary, setTrackingSummary] = useState(null);
+
   // Parse location string from DB: "lat:lng|Address" or just "Address"
   const parseLocData = (str) => {
     if (!str) return { lat: null, lng: null, text: '' };
@@ -239,7 +243,11 @@ export default function SocioDashboard() {
 
                   {/* Smart Routing via Leaflet Routing Machine si existen ambos */}
                   {(origenPos && destinoPos) && (
-                     <RoutingMachine start={origenPos} end={destinoPos} />
+                     <RoutingMachine 
+                        waypoints={[origenPos, destinoPos]} 
+                        onRouteFound={setRouteSummary} 
+                        color="#3b82f6" 
+                     />
                   )}
                 </MapContainer>
                 ) : (
@@ -248,6 +256,15 @@ export default function SocioDashboard() {
                   </div>
                 )}
                 
+                {/* Route Summary */}
+                {routeSummary && mapMode !== 'origen' && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-indigo-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
+                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1"/> {routeSummary.time} min</span>
+                    <div className="w-px h-5 bg-slate-600"></div>
+                    <span className="flex items-center text-indigo-400"><Navigation size={16} className="mr-1"/> {routeSummary.distance} km</span>
+                  </div>
+                )}
+
                 {/* Control Panel Over Map */}
                 <div className="absolute top-2 right-2 bg-slate-800/90 backdrop-blur border border-slate-700 rounded-lg p-2 flex gap-2 z-[1000] shadow-xl">
                    <button type="button" onClick={() => setMapMode('origen')} className={`px-3 py-1.5 text-xs font-bold rounded ${mapMode === 'origen' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>📍 Fijar Origen</button>
@@ -326,12 +343,35 @@ export default function SocioDashboard() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <Marker position={[ubicacionConductor.lat,ubicacionConductor.lng]}>
-                      <Popup>
-                        La grúa de {solicitud.nombreConductor} está aquí.
-                      </Popup>
+                    
+                    <Marker position={[ubicacionConductor.lat, ubicacionConductor.lng]}>
+                      <Popup>La grúa de {solicitud.nombreConductor} está aquí.</Popup>
                     </Marker>
+                    
+                    {parseLocData(solicitud.ubicacionOrigen).lat && (
+                      <Marker position={[parseLocData(solicitud.ubicacionOrigen).lat, parseLocData(solicitud.ubicacionOrigen).lng]}>
+                        <Popup>Tu ubicación de origen.</Popup>
+                      </Marker>
+                    )}
+
+                    <RoutingMachine 
+                        waypoints={[
+                          ubicacionConductor, 
+                          {lat: parseLocData(solicitud.ubicacionOrigen).lat, lng: parseLocData(solicitud.ubicacionOrigen).lng}
+                        ]}
+                        onRouteFound={setTrackingSummary}
+                        color="#10b981"
+                    />
                   </MapContainer>
+                )}
+                
+                {/* Tracking Route Summary */}
+                {trackingSummary && (
+                  <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-slate-900/90 backdrop-blur border border-emerald-500/50 text-white px-4 py-2 rounded-xl shadow-2xl z-[1000] flex gap-4 text-sm font-bold items-center">
+                    <span className="flex items-center text-amber-400"><Clock size={16} className="mr-1.5"/> ETA: {trackingSummary.time} min</span>
+                    <div className="w-px h-5 bg-slate-600"></div>
+                    <span className="flex items-center text-emerald-400"><Navigation size={16} className="mr-1.5"/> {trackingSummary.distance} km</span>
+                  </div>
                 )}
               </div>
             )}
