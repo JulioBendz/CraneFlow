@@ -8,14 +8,15 @@ import L from 'leaflet';
 import { carIcon, originIcon, destinationIcon } from '../components/MapIcons';
 import RoutingMachine from '../components/RoutingMachine';
 
-// Utilidad para parsear strings "lat,lng"
+// Utilidad para parsear strings "lat:lng|Address" o solo "Address"
 const parseLocData = (str) => {
-  if (!str) return { lat: null, lng: null };
-  const parts = str.split(',');
-  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    return { lat: parseFloat(parts[0]), lng: parseFloat(parts[1]) };
+  if (!str) return { lat: null, lng: null, text: '' };
+  const parts = str.split('|');
+  if (parts.length === 2 && parts[0].includes(':')) {
+     const coords = parts[0].split(':');
+     return { lat: parseFloat(coords[0]), lng: parseFloat(coords[1]), text: parts[1] };
   }
-  return { lat: null, lng: null };
+  return { lat: null, lng: null, text: str };
 };
 
 export default function AdminDashboard() {
@@ -261,8 +262,10 @@ export default function AdminDashboard() {
 
                     {/* Ruta Conductor -> Origen Incidencia */}
                     <RoutingMachine 
-                      start={[c.lat, c.lng]} 
-                      end={[origenObj.lat, origenObj.lng]} 
+                      waypoints={[
+                        { lat: c.lat, lng: c.lng },
+                        { lat: origenObj.lat, lng: origenObj.lng }
+                      ]}
                       color="#10b981" 
                       onRouteFound={(summary) => {
                         if (isSelected) setAdminRouteSummary(summary);
@@ -272,8 +275,10 @@ export default function AdminDashboard() {
                     {/* Ruta Origen Incidencia -> Destino Incidencia (Solo si el destino existe) */}
                     {destinoObj.lat && (
                        <RoutingMachine 
-                         start={[origenObj.lat, origenObj.lng]} 
-                         end={[destinoObj.lat, destinoObj.lng]} 
+                         waypoints={[
+                           { lat: origenObj.lat, lng: origenObj.lng },
+                           { lat: destinoObj.lat, lng: destinoObj.lng }
+                         ]}
                          color="#6366f1" 
                        />
                     )}
